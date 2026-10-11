@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<!-- ============================================================================
+     poster_template.html —— academic-poster-builder 起手模板（骨架，无示例数据）
+
+     用法：复制成本项目 poster.html，然后
+       ① 改画布尺寸（CSS px = 目标 mm × 96 / 25.4；900×1200 mm → 3402×4536）
+       ② 改字体族（必须与转换时的 --font 一致，取字体栈第一项）
+       ③ 填文案：所有 [方括号] 都是占位符
+       ④ 加图：取消 <figure> 注释，按注释里的公式填 width/height
+
+     结构契约（删了会错版）：
+       .content 与 .col 的 height 必须相等；改页头高度（含去掉横幅）必须同步改这两个值
+       .panel{flex:1 1 auto}          → 三栏底边自动对齐、余量平均分配
+       .panel-head .num / .concl .item .n → 编号被脚本单独取出并双向居中
+       .note                          → 每节末尾的短介绍（PPT 里独立成框）
+       .pnum                          → 会议编号框（右下角，保留模板样式）
+       每个 <img> 必须同时写 width 和 height，且比例 = 源图（误差 ≤0.5%）
+       li 的项目符号必须用 ::before 画（原生 list-style 圆点在 PPT 里不复现）
+
+     空面板在几何门禁里会报 slack/overflow，属正常现象；填完内容再跑门禁。
+     数值口径与门禁阈值见 references/01-workflow.md
+     支持的正文元素：h1 / p / li / figcaption / .note / .metric 各栏 / .refs .r 等
+     （没列到的块级文本也会被兜底采集，不会丢）；行内支持 b/i/u/s/sub/sup/small、
+     text-transform、white-space:nowrap 与 pre；不支持的（box-shadow/outline/缩放变换/
+     原生 list-style 圆点）会在生成时告警。
+     ============================================================================ -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>[Poster title]</title>
+<style>
+  :root{ --ink:#12233a; --ink2:#2c3f57; --muted:#4a6180;
+         --brand:#1b47a8; --brand2:#0f8f6f; --accent:#c2410c;
+         --line:#c9d6e8; --tint:#f2f7fe; --tint2:#eef8f4; --tint3:#fff4ec; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+
+  /* 画布：CSS px = mm × 96 / 25.4；900×1200 mm → 3402×4536 */
+  html,body{width:3402px;height:4536px;}
+  body{background:#fff;color:var(--ink);
+       font-family:"Microsoft YaHei","Noto Sans CJK SC","Segoe UI",Arial,sans-serif;}
+  .poster{position:relative;width:3402px;height:4536px;background:#fff;
+          display:flex;flex-direction:column;overflow:hidden;}
+
+  /* 页头：横幅 + 标题块 + 指标行。三者高度之和决定 .content/.col 的高度：
+     400(banner) + 14 + 标题块实测高 + 12 + 142 + 12 + .content = 画布高；
+     不用横幅时把它的 400 px 补进 .content/.col，否则底部空一大条。
+     左右页边距必须由栏宽反推：页边距 = (画布宽 − Σ栏宽 − Σ间距)/2 = (3402−3178)/2 = 112 px，
+     页头三块用同一个值，否则右栏会比页头缩进一条。 */
+  .banner{width:3402px;height:400px;display:block;flex:0 0 auto;object-fit:cover;object-position:center 45%;}
+  .titleblock{margin:14px 112px 0;padding:16px 50px 12px;background:linear-gradient(135deg,#eef4ff,#eaf7f2);
+              border:4px solid var(--brand);border-radius:24px;text-align:center;flex:0 0 auto;}
+  h1{font-size:76px;line-height:1.14;font-weight:700;color:#0d3a86;}
+  h1 .en{display:block;font-size:33px;line-height:1.22;font-weight:600;color:#0f5f4a;margin-top:9px;}
+  .authors{margin-top:10px;font-size:38px;font-weight:600;color:var(--ink2);}
+  .affil{margin-top:4px;font-size:27px;color:var(--muted);}
+  .srcline{margin-top:6px;font-size:22px;color:var(--muted);}
+
+  .metrics{margin:12px 112px 0;display:flex;gap:14px;height:142px;flex:0 0 auto;}
+  .metric{flex:1;border-radius:16px;padding:9px 13px 7px;background:var(--tint);border:2px solid var(--line);
+          display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .metric .lab{font-size:21px;color:var(--muted);font-weight:600;line-height:1.18;}
+  .metric .val{font-size:47px;font-weight:700;color:var(--brand);line-height:1.02;margin-top:2px;}
+  .metric .val small{font-size:21px;font-weight:600;color:var(--ink2);}
+  .metric .cmp{font-size:19px;color:var(--accent);font-weight:600;margin-top:3px;line-height:1.16;}
+  .metric.g .val{color:var(--brand2);}
+  .metric.o .val{color:var(--accent);}
+
+  /* 三栏：Σ栏宽 + 栏间距 = 内容区宽 = 画布宽 − 2×页边距 = 3402 − 224 = 3178 */
+  .content{margin:12px 112px 0;display:flex;gap:24px;height:3624px;flex:0 0 3624px;flex-wrap:nowrap;}
+  .col{width:1010px;flex:0 0 1010px;display:flex;flex-direction:column;gap:20px;min-width:0;height:3624px;}
+  .col.center{width:1110px;flex:0 0 1110px;}
+
+  .panel{background:#fff;border:3px solid var(--line);border-radius:18px;
+         display:flex;flex-direction:column;overflow:hidden;flex:1 1 auto;min-height:0;}
+  .panel-head{display:flex;align-items:center;gap:13px;padding:8px 20px;
+              background:linear-gradient(90deg,#e8f1fd,#f5fafe);border-bottom:3px solid var(--line);flex:0 0 auto;}
+  .panel-head .num{width:50px;height:50px;border-radius:13px;background:var(--brand);color:#fff;
+                   font-size:29px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .panel-head h2{font-size:35px;font-weight:700;color:#0d3a86;line-height:1.08;}
+  .panel-head .en{font-size:19px;font-weight:600;color:var(--brand2);display:block;margin-top:1px;}
+  .panel-body{padding:11px 20px 13px;display:flex;flex-direction:column;gap:9px;flex:1 1 auto;min-height:0;}
+
+  p{font-size:27px;line-height:1.38;color:var(--ink2);}
+  ul{list-style:none;display:flex;flex-direction:column;gap:7px;}
+  li{font-size:27px;line-height:1.34;color:var(--ink2);padding-left:28px;position:relative;}
+  /* 项目符号必须是 ::before（原生 list-style 圆点在 PPT 里不会复现） */
+  li::before{content:"";position:absolute;left:0;top:13px;width:15px;height:15px;border-radius:5px;background:var(--brand);}
+  li.acc::before{background:var(--accent);}
+  li.step::before{background:var(--brand2);}
+  b,strong{color:#0d3a86;}
+
+  figure{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;}
+  figure.cent{align-items:center;}
+  figure.cent figcaption{align-self:stretch;}
+  figure img{display:block;border-radius:8px;max-width:100%;height:auto;}
+  figcaption{font-size:21px;line-height:1.28;color:var(--muted);}
+  figcaption b{color:var(--accent);}
+  /* 并排两张图 */
+  .row2{display:flex;gap:12px;align-items:flex-start;}
+  .row2 > *{min-width:0;max-width:100%;}
+  .row2 > figure,.row2 > .fx{flex:0 0 auto;}
+  .fx{flex:0 0 auto;}
+
+  .note{background:var(--tint);border-left:8px solid var(--brand);border-radius:9px;
+        padding:6px 12px;font-size:24px;line-height:1.32;color:var(--ink2);}
+  .note.g{background:var(--tint2);border-left-color:var(--brand2);}
+  .note.o{background:var(--tint3);border-left-color:var(--accent);}
+
+  .refs{display:flex;flex-direction:column;gap:9px;}
+  .refs .r{display:flex;gap:10px;font-size:23px;line-height:1.34;color:var(--ink2);}
+  .refs .r .n{flex:0 0 auto;font-weight:700;color:#0d3a86;width:38px;}
+
+  .concl{display:flex;flex-direction:column;gap:9px;}
+  .concl .item{display:flex;gap:11px;align-items:flex-start;font-size:26px;line-height:1.34;color:var(--ink2);}
+  .concl .item .n{width:40px;height:40px;flex:0 0 auto;border-radius:50%;background:var(--brand2);color:#fff;
+                  font-size:23px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+  .pnum{align-self:flex-end;margin-top:4px;background:#cfeaea;border-radius:18px;padding:8px 26px 10px;text-align:center;}
+  .pnum .pn-val{font-size:30px;font-weight:700;color:#111;line-height:1.2;}
+  .pnum .pn-cn{font-size:23px;color:#e00000;margin-top:3px;line-height:1.2;}
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- ① 会议横幅（可选）。放入图片后取消注释；object-fit:cover 会裁切，不参与纵横比审计 -->
+  <!-- <img class="banner" src="assets/banner.png" alt="conference banner"> -->
+
+  <div class="titleblock">
+    <h1>[中文主标题]
+      <span class="en">[English subtitle — 与中文标题同一主张]</span>
+    </h1>
+    <div class="authors">[作者1, 作者2, 通讯作者*]</div>
+    <div class="affil">[单位 / School]</div>
+    <!-- <div class="srcline">[基金/期刊来源行，可选]</div> -->
+  </div>
+
+  <div class="metrics">
+    <!-- 指标卡：一组 4 个，数量由 flex 自适应；单位写进 <small> -->
+    <div class="metric"><div class="lab">[指标名]</div><div class="val">[值]<small> [单位]</small></div><div class="cmp">[对照说明]</div></div>
+    <div class="metric g"><div class="lab">[指标名]</div><div class="val">[值]<small> [单位]</small></div><div class="cmp">[对照说明]</div></div>
+    <div class="metric o"><div class="lab">[指标名]</div><div class="val">[值]<small> [单位]</small></div><div class="cmp">[对照说明]</div></div>
+    <div class="metric g"><div class="lab">[指标名]</div><div class="val">[值]<small> [单位]</small></div><div class="cmp">[对照说明]</div></div>
+  </div>
+
+  <div class="content">
+
+    <!-- ==================== 左栏 ==================== -->
+    <div class="col">
+
+      <div class="panel">
+        <div class="panel-head"><div class="num">1</div>
+          <h2>[小节标题]<span class="en">[Section title]</span></h2></div>
+        <div class="panel-body">
+          <ul>
+            <li>[要点 1 —— 关键结论用 <b>加粗</b>]</li>
+            <li class="acc">[要点 2 —— 需要强调时用 .acc / .step 换个符号色]</li>
+          </ul>
+          <div class="note"><b>[小结]</b>[只描述本节的图；引用别节必须写"见 Fig. N（panel M）"]</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="num">2</div>
+          <h2>[小节标题]<span class="en">[Section title]</span></h2></div>
+        <div class="panel-body">
+          <!-- 图片：先量源图再算高 —— 高 = round(显示宽 / 源图宽高比)，宽高比 = 源图宽 ÷ 源图高
+               例：源图 A×B（aspect = A/B）、左栏内容宽 964 ⇒ 高 = round(964 ÷ (A/B))
+               内容宽：左/右栏 = 栏宽 − 2×3(border) − 2×20(padding) = 964；中栏 1110 → 1064
+               <figure class="cent">
+                 <img style="width:964px;height:[算出来的高]px" src="assets/fig1.png" alt="[图的说明]">
+                 <figcaption><b>Fig. 1</b>&nbsp;[图注：数字必须与图内标注一致]</figcaption>
+               </figure>
+               并排两张图：<div class="row2"><figure>…</figure><figure>…</figure></div>
+          -->
+          <div class="note g"><b>[小结]</b>[这一节得到了什么]</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== 中栏 ==================== -->
+    <div class="col center">
+
+      <div class="panel">
+        <div class="panel-head"><div class="num">3</div>
+          <h2>[小节标题]<span class="en">[Section title]</span></h2></div>
+        <div class="panel-body">
+          <div class="note o"><b>[小结]</b>[本节局限 / 引出下一节]</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== 右栏 ==================== -->
+    <div class="col">
+
+      <div class="panel">
+        <div class="panel-head"><div class="num">4</div>
+          <h2>[小节标题]<span class="en">[Section title]</span></h2></div>
+        <div class="panel-body">
+          <div class="refs">
+            <!-- 一条一行；编号用 .n，正文里期刊名 <i>、年 <b>、卷 <i> -->
+            <div class="r"><span class="n">[1]</span><span>[作者. 题目. <i>期刊</i> <b>年</b>, <i>卷</i>, 页码. DOI]</span></div>
+          </div>
+          <div class="note"><b>[图片来源说明]</b>[每张图来自哪篇文献 / 哪些是本组原始图]</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="num">5</div>
+          <h2>[小节标题]<span class="en">[Section title]</span></h2></div>
+        <div class="panel-body">
+          <div class="concl">
+            <div class="item"><div class="n">1</div><div><b>[结论一]</b>[一句话]</div></div>
+            <div class="item"><div class="n">2</div><div><b>[展望]</b>: <b>(i)</b> [方向一]；<b>(ii)</b> [方向二]</div></div>
+          </div>
+          <div class="note"><b>[致谢]</b>: [基金号 / 实验室]</div>
+          <div class="pnum"><div class="pn-val">[编号]</div><div class="pn-cn">[可选说明]</div></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

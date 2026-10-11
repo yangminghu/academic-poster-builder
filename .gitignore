@@ -1,0 +1,15 @@
+# 交付包与历史备份
+*.zip
+# 数据与产物（技能包本身不含这些）
+*.txt
+*.csv
+*.xlsx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+# 运行中间产物
+_work/
+_backup/
+__pycache__/
+*.pyc

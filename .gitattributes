@@ -1,0 +1,5 @@
+# 本包硬性要求 LF（zip 规范与自检都按 LF 校验），避免 Windows 克隆后被转成 CRLF
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
