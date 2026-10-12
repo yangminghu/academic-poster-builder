@@ -50,8 +50,16 @@ academic-poster-builder/          ← 仓库根
 
 ## 校验与发布（自动化）
 
-推 `main` / 提 PR 时 CI 自动跑 8 道：LF 换行 → Python 语法 → 打包两次比对（可复现）→
-包门禁（目录 + zip）→ 门禁自身 13 项负向测试 → 隐私体检 → 压力矩阵样本登记冒烟 → 环境体检。
+工作流 `.github/workflows/ci.yml`（界面名「**校验与发布**」）按触发方式分两条路径：
+
+| 触发 | 跑什么 |
+|---|---|
+| **push `main` / 提 PR** | ① LF 换行 → ② Python 语法 → ③ 打包两次比对（可复现）→ ④ 包门禁（目录 + zip）→ ⑤ 隐私体检 → ⑥ 冒烟（压力矩阵样本登记 + 环境体检）→ 上传 zip 产物 |
+| **打 tag（`v*`）** | 先跑上面 ①–⑥，通过后再：⑦ tag 必须与包内 `version` 一致 → ⑧ 确定性打包 → ⑨ **创建或更新 Release**（挂 zip、清过期附件、发布后自检 draft 与附件） |
+| **手动触发**（Actions → Run workflow） | 只校验；**填 tag** 则额外走 ⑦–⑨ 补发/重发 Release；**勾 selftest** 才跑门禁自身的 13 项负向测试 |
+
+> 门禁负向测试（自检）**默认跳过**。需要时：Actions → Run workflow → 勾 `selftest`；
+> 或在本地跑 `python academic-poster-builder/scripts/check_package.py --selftest`。
 
 **发布不再手工**：改完包 → 把 `SKILL.md` 的 `version` 与本次发布号对齐 → 打 tag 并推送：
 
@@ -60,16 +68,13 @@ git tag v1.8.0            # 轻量 tag（本项目约定：tag 与提交信息�
 git push origin v1.8.0
 ```
 
-> **提交信息约定**：本项目所有提交信息**留空**（`git commit --allow-empty-message -m ""`）。
+> **提交信息约定**：本项目所有提交信息**留空**（`git commit --allow-empty-message -F <空文件>`）。
 > 变更内容写在 `references/00-install.md` 的版本记录与 [RELEASE_NOTES.md](RELEASE_NOTES.md) 里，
 > 不写进提交信息 —— 这样 GitHub 的文件列表里不会出现提交摘要。
 
-CI 会先校验（tag 必须与包内 `version` 一致），通过后**自动创建或更新 Release**，
-把确定性打包出的 zip 挂成附件，并清理过期附件。Release 描述取自 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
-也可在 Actions 页手动触发工作流（填一个已存在的 tag）补发或重发 Release。
-
-> 发布作业需要 `GITHUB_TOKEN` 的写权限（仓库默认通常已有）。若报 403：
-> Settings → Actions → General → Workflow permissions → 勾 "Read and write permissions"。
+Release 描述取自 [RELEASE_NOTES.md](RELEASE_NOTES.md)；发布作业需要 `GITHUB_TOKEN` 的写权限
+（仓库默认通常已有）。若报 403：Settings → Actions → General → Workflow permissions →
+勾 "Read and write permissions"。
 
 ⚠️ **已发布 Release 的 tag 不要删除后重推**。删除 tag 会让 GitHub 把该 Release 置为
 draft/untagged，附件随之对匿名访问不可见（下载 404）。工作流已显式 `--draft=false` 并在发布后

@@ -1,7 +1,13 @@
 name: 校验与发布
 
-# 推 main / 提 PR → 只校验；打 tag（v*）→ 校验通过后自动创建或更新 Release 并挂上 zip。
-# 也可在 Actions 页手动触发（填一个已存在的 tag 即可补发/重发 Release）。
+# ┌─ 流程总览 ────────────────────────────────────────────────────────────────┐
+# │ push main / 提 PR   ①LF ②语法 ③可复现打包 ④包门禁 ⑤隐私 ⑥冒烟 → 上传产物    │
+# │ 打 tag（v*）        先跑上面 ①–⑥，再 ⑦tag↔版本 ⑧打包 ⑨发布/更新 Release    │
+# │ 手动触发            填 tag 可补发/重发 Release；勾 selftest 才跑门禁负向测试 │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# 默认**跳过**门禁自身的负向测试（自检）；需要时用「Run workflow → selftest」勾选，
+# 或在本地跑：python academic-poster-builder/scripts/check_package.py --selftest
 
 on:
   push:
@@ -11,9 +17,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '已存在的 tag（用它发布 Release；留空则只校验不发布）'
+        description: '已存在的 tag（填了才发布 Release；留空则只校验）'
         required: false
         default: ''
+      selftest:
+        description: '额外跑门禁自身的负向测试（默认跳过）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,19 +34,21 @@ concurrency:
 
 jobs:
   check:
-    name: 校验技能包
+    name: ① 校验技能包
     runs-on: ubuntu-latest
-    # 字节码统一写到临时目录，避免在源码树里生成 __pycache__（门禁会把它判为不合格）
+    # 字节码写到临时目录，避免源码树里出现 __pycache__（包门禁会判它不合格）
     env:
       PYTHONPYCACHEPREFIX: /tmp/pycache
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出代码
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: 准备 Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: 1. 换行必须是 LF
+      - name: ① 换行必须是 LF
         run: |
           python - <<'PY'
           import pathlib, subprocess, sys
@@ -49,53 +61,71 @@ jobs:
           sys.exit(1 if bad else 0)
           PY
 
-      - name: 2. Python 语法
+      - name: ② Python 语法
         run: python -m compileall -q academic-poster-builder/scripts tools
 
-      - name: 3. 打包两次必须逐字节一致（可复现）
+      - name: ③ 打包两次必须逐字节一致（可复现）
         run: python tools/build_zip.py --reproducible
 
-      - name: 4. 包门禁（目录 + zip）
+      - name: ④ 包门禁（目录 + zip）
         run: |
           python academic-poster-builder/scripts/check_package.py academic-poster-builder
           python academic-poster-builder/scripts/check_package.py dist/*.zip
 
-      - name: 5. 门禁自身的负向测试（防止门禁退化成空转）
-        run: python academic-poster-builder/scripts/check_package.py --selftest
-
-      - name: 6. 隐私体检（仓库 + zip 原始字节）
+      - name: ⑤ 隐私体检（仓库 + zip 原始字节）
         run: python tools/scan_privacy.py . --zip dist/*.zip
 
-      - name: 7. 压力矩阵样本登记冒烟（不需要浏览器）
-        run: python academic-poster-builder/scripts/60_pressure_matrix.py --list > /dev/null
+      - name: ⑥ 冒烟：压力矩阵样本登记 + 环境体检脚本
+        run: |
+          python academic-poster-builder/scripts/60_pressure_matrix.py --list > /dev/null
+          python academic-poster-builder/scripts/00_check_env.py || true
 
-      - name: 8. 环境体检脚本可运行（缺依赖只报告，不判失败）
-        run: python academic-poster-builder/scripts/00_check_env.py || true
+      - name: ⑦ 门禁负向测试（自检，默认跳过）
+        if: github.event_name == 'workflow_dispatch' && inputs.selftest
+        run: python academic-poster-builder/scripts/check_package.py --selftest
 
-      - uses: actions/upload-artifact@v4
+      - name: ⑧ 上传打包产物
+        uses: actions/upload-artifact@v4
         with:
           name: skill-package
           path: dist/*.zip
           if-no-files-found: error
 
+      - name: 汇总
+        run: |
+          echo "### 校验完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 步骤 | 说明 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| ① | 换行 LF |" >> $GITHUB_STEP_SUMMARY
+          echo "| ② | Python 语法 |" >> $GITHUB_STEP_SUMMARY
+          echo "| ③ | 打包可复现（两次比对 sha256） |" >> $GITHUB_STEP_SUMMARY
+          echo "| ④ | 包门禁（目录 + zip） |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⑤ | 隐私体检 |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⑥ | 冒烟 |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⑦ | 门禁负向测试（默认跳过） |" >> $GITHUB_STEP_SUMMARY
+          ls -l dist/
+
   release:
-    name: 发布 Release
+    name: ② 发布 Release
     needs: check
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '')
     runs-on: ubuntu-latest
     env:
       PYTHONPYCACHEPREFIX: /tmp/pycache
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出代码（tag 指向的提交）
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: 准备 Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: 1. tag 必须与包内 version 一致
+      - name: ① tag 必须与包内 version 一致
         env:
           TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
         run: |
@@ -105,17 +135,16 @@ jobs:
           ver = re.search(r"^version:\s*([\d.]+)\s*$",
                           pathlib.Path("academic-poster-builder/SKILL.md").read_text(encoding="utf-8"),
                           re.M).group(1)
-          want = tag.lstrip("v")
           print("tag=%s  包内 version=%s" % (tag, ver))
-          if want != ver:
+          if tag.lstrip("v") != ver:
               print("::error::tag %s 与包内 version %s 不一致：请先改 SKILL.md 的 version 再打 tag" % (tag, ver))
               sys.exit(1)
           PY
 
-      - name: 2. 打包（确定性）
+      - name: ② 确定性打包
         run: python tools/build_zip.py
 
-      - name: 3. 发布 / 更新 Release（含附件与过期附件清理）
+      - name: ③ 发布 / 更新 Release（挂 zip、清过期附件、发布后自检）
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
@@ -130,7 +159,7 @@ jobs:
           if [ ! -f "$NOTES" ]; then echo "::error::缺 $NOTES（Release 描述来源）"; exit 1; fi
 
           # 已存在就更新，不存在就创建；两种情况都强制 --draft=false
-          # （tag 被删过会导致 Release 变成 draft/untagged —— 此时附件对匿名访问不可见，必须显式取消 draft）
+          # （tag 被删过会让 Release 变成 draft/untagged，此时附件对匿名访问不可见）
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "已存在 Release：更新标题/描述/取消 draft"
             gh release edit "$TAG" --title "$TITLE $TAG" --notes-file "$NOTES" --draft=false
@@ -155,6 +184,6 @@ jobs:
           echo "isDraft=$ISDRAFT  附件 $NAME 命中=$COUNT"
           if [ "$ISDRAFT" = "true" ]; then echo "::error::Release 仍是 draft，公开页看不到附件"; exit 1; fi
           if [ "$COUNT" != "1" ]; then echo "::error::附件未挂上：$NAME"; exit 1; fi
-          echo "== 发布结果 =="
           gh release view "$TAG" --json tagName,name,isDraft,assets \
-            -q '"tag=\(.tagName)  title=\(.name)  draft=\(.isDraft)  assets=\([.assets[] | "\(.name) (\(.size) B)"] | join(", "))"'
+            -q '"tag=\(.tagName)  title=\(.name)  draft=\(.isDraft)  assets=\([.assets[] | "\(.name) (\(.size) B)"] | join(", "))"' \
+            | tee -a "$GITHUB_STEP_SUMMARY"
