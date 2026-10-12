@@ -8,6 +8,9 @@
 *.png
 *.jpg
 *.jpeg
+# 构建产物
+dist/
+
 # 运行中间产物
 _work/
 _backup/

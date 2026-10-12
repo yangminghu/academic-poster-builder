@@ -20,7 +20,7 @@ academic-poster-builder/
 ├── SKILL.md                      # 主文档：硬规则 + 工作流 + 交付物
 ├── references/
 │   ├── 05-prepare.md             # 制备：输入清单 / 故事线与面板 / 文案改写 / 图表引用 / 合规红线
-│   ├── 01-workflow.md            # 流水线、版面规格、几何门禁（9 项阈值）
+│   ├── 01-workflow.md            # 流水线、版面规格、几何门禁（15 项阈值）
 │   ├── 02-pptx-conversion.md     # CSS → OOXML 映射规则（核心）
 │   ├── 03-figures.md             # 取图、裁白边、纵横比、合并图
 │   ├── 04-operations.md          # 浏览器/进程/权限/备份 + 故障速查表
@@ -29,9 +29,43 @@ academic-poster-builder/
 │   ├── 00-install.md             # 安装、依赖、实测验证记录、合规提示
 │   └── LICENSE                   # 许可与署名（Apache-2.0 摘要 + 全文）
 ├── scripts/                      # 00 体检 / 10 测量门禁导出 / 20 生成 PPTX / 30 图片工具 /
-│                                 # 40 验收 / 50 快照 / 60 压力矩阵 / 99 自检 / edge_cdp / poster_measure.js
+│                                 # 40 验收 / 50 快照 / 60 压力矩阵 / check_package 打包门禁 /
+│                                 # 99 自检 / edge_cdp / poster_measure.js
 └── templates/poster_template.html # 起手模板（骨架，无示例数据）
 ```
+
+## 仓库结构
+
+```
+academic-poster-builder/          ← 仓库根
+├── README.md / LICENSE / NOTICE / RELEASE_NOTES.md
+├── .gitattributes                ← 强制 LF（本包硬性要求）
+├── .gitignore                    ← 挡住 *.zip / *.txt / *.xlsx / *.pdf / 图片 / __pycache__
+├── .github/workflows/ci.yml      ← CI：校验 + 打 tag 自动发布
+├── tools/
+│   ├── build_zip.py              ← 确定性打包（同输入必得同字节）
+│   └── scan_privacy.py           ← 发布前隐私体检（只用通用规则）
+└── academic-poster-builder/      ← 技能包本体（根结构 = SKILL.md + references/ + scripts/ + templates/）
+```
+
+## 校验与发布（自动化）
+
+推 `main` / 提 PR 时 CI 自动跑 8 道：LF 换行 → Python 语法 → 打包两次比对（可复现）→
+包门禁（目录 + zip）→ 门禁自身 13 项负向测试 → 隐私体检 → 压力矩阵样本登记冒烟 → 环境体检。
+
+**发布不再手工**：改完包 → 把 `SKILL.md` 的 `version` 与本次发布号对齐 → 打 tag 并推送：
+
+```bash
+git tag -a v1.8.0 -m "学术墙报制备 v1.8.0"
+git push origin v1.8.0
+```
+
+CI 会先校验（tag 必须与包内 `version` 一致），通过后**自动创建或更新 Release**，
+把确定性打包出的 zip 挂成附件，并清理过期附件。Release 描述取自 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
+也可在 Actions 页手动触发工作流（填一个已存在的 tag）补发或重发 Release。
+
+> 发布作业需要 `GITHUB_TOKEN` 的写权限（仓库默认通常已有）。若报 403：
+> Settings → Actions → General → Workflow permissions → 勾 "Read and write permissions"。
 
 ## 安装
 

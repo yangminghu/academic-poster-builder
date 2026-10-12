@@ -6,7 +6,7 @@ description: "把用户给的文献与资料做成学术墙报：读文献定故
 description_zh: "文献/资料 → 学术墙报的完整流程与硬规范：输入清单与合规红线 → 故事线与面板划分 → 墙报文案改写 → 图表与引用 → 生成 HTML → 几何门禁 → 导出 PDF 与可编辑 PPTX → 一致性验收；含图片裁白边与纵横比审计、object-fit 裁切、单边边框、编号居中修正、进程与备份规范。"
 description_en: "Turn supplied literature and materials into an academic poster: gather inputs and clear rights, define the storyline and panels, rewrite copy for poster density, prepare figures and citations, then produce HTML, PDF and an editable, pixel-faithful PPTX (browser-measured DOM geometry, a quantified layout gate, figure trimming and aspect audit, object-fit cropping, per-side borders, and PPT-vs-PDF verification of badge centring, text placement, picture crop and package integrity)."
 category: writing
-version: 1.7.2
+version: 1.8.0
 author: Yangming Hu
 license: Apache-2.0（见 @references/LICENSE）
 ---
@@ -43,6 +43,7 @@ license: Apache-2.0（见 @references/LICENSE）
 | `scripts/30_figure_tools.py` | `trim` 裁图片白边 / `aspect` 纵横比审计 |
 | `scripts/40_verify_pptx.py` | 验收（编号居中 / 文本落位 / 图片变形与裁切 / 包结构 / 页尺寸） |
 | `scripts/50_snapshot.py` | 版本快照（`_backup/<时间戳>_<标签>/`，自动识别 html/pdf/pptx） |
+| `scripts/check_package.py` | **打包门禁**（离线）：根目录结构 / frontmatter 必填项 / `@references` 引用落地 / 许可自洽 / 编码 / 隐私 / zip 容器规范；`--selftest` 跑 13 项负向测试 |
 | `scripts/99_selftest.py` | **自检**：新机器上一键验证整条链路（体检→起浏览器→测量门禁→PPTX→一致性校验→关浏览器） |
 | `scripts/60_pressure_matrix.py` | **压力矩阵**：39 个中性样本 × 10 轮，逐项比对"该过的过、该拦的拦、不许 traceback"（`--quick` 3 个冒烟样本） |
 

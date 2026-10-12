@@ -106,51 +106,34 @@ def main() -> int:
     print("   目标 HTML: %s" % html)
     print("   工作目录: %s（已清空）" % a.work)
 
-    print("\n0) 包结构与许可")
+    print("\n0) 包结构与许可（由 scripts/check_package.py 统一判定）")
     root = HERE.parent
-    entries = sorted(p.name for p in root.iterdir())
-    allowed = {"SKILL.md", "references", "scripts", "templates"}
-    # 下划线开头的是运行期工作目录（_work 等），不是包内容：允许存在，不算结构违规。
-    extra = [e for e in entries if e not in allowed and not e.startswith("_")]
-    workdirs = [e for e in entries if e not in allowed and e.startswith("_")]
-    step("根目录结构", not extra,
-         "根目录 %s%s%s" % (entries,
-                            "；多出 %s（规范只允许 SKILL.md/references/scripts/templates）" % extra if extra else "",
-                            "；_ 开头的工作目录已忽略：%s" % workdirs if workdirs else ""))
-    lic = root / "references" / "LICENSE"
-    lt = lic.read_text(encoding="utf-8") if lic.is_file() else ""
-    lic_ok = (lic.is_file() and "Apache License" in lt and "Version 2.0, January 2004" in lt
-              and "Yangming Hu" in lt and "专有许可" not in lt)
-    step("许可文件 LICENSE", lic_ok,
-         (str(lic.relative_to(root)) + "（Apache-2.0 + 署名 Yangming Hu）") if lic_ok
-         else "references/LICENSE 缺失或不是 Apache-2.0（或出现『专有许可』回退）")
-    skill_md = root / "SKILL.md"
-    text = skill_md.read_text(encoding="utf-8", errors="replace") if skill_md.is_file() else ""
-    fm = frontmatter(text)
-    step("SKILL.md frontmatter 可解析", bool(fm),
-         "" if fm else "SKILL.md 缺失或开头没有 --- 分隔的 frontmatter")
-    nm = [l.split(":", 1)[1].strip() for l in fm.splitlines() if l.startswith("name:")]
-    if bool(nm) and nm[0] == root.name:
-        step("包名与根目录一致", True, "name=%s" % nm[0])
+    cp = HERE / "check_package.py"
+    if not cp.is_file():
+        step("包门禁 check_package.py", False, "缺 scripts/check_package.py")
     else:
-        # 解压到改过名的目录是正常用法，不能因此判失败；只提示。
-        warn("包名与根目录一致", "name=%s 根目录=%s（解压目录被改名不影响使用，仅提示）"
-             % (nm[0] if nm else "?", root.name))
-    need = ["name:", "version:", "author:", "license:"]
-    miss = [k for k in need if k not in fm]
-    step("frontmatter 必填项", not miss, "缺 %s" % miss if miss else "name/version/author/license 齐全")
-    import re as _re
-    leaks = []
-    for f in sorted(root.rglob("*")):
-        if not f.is_file():
-            continue
-        rel = f.relative_to(root)
-        if any(part.startswith("_") for part in rel.parts[:-1]) or rel.parts[0].startswith("_"):
-            continue                      # 工作目录是运行期数据，不是交付内容
-        t = f.read_text(encoding="utf-8", errors="ignore")
-        if _re.search(r"1[3-9]\d{9}", t) or _re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", t):
-            leaks.append(str(rel))
-    step("无联系方式泄漏", not leaks, ", ".join(leaks) if leaks else "全包无手机号 / 邮箱")
+        # 包门禁是打包规范、frontmatter、许可自洽、引用落地、编码、隐私的单一真源；
+        # 这里带 --allow-root-rename：把包解压到改名的目录是正常用法，只提示不判失败。
+        rc, out = run([sys.executable, str(cp), str(root), "--json", "--allow-root-rename"])
+        info = {}
+        i = out.find("{")
+        if i >= 0:
+            try:
+                info, _ = json.JSONDecoder().raw_decode(out[i:])
+            except ValueError:
+                info = {}
+        if not info:
+            step("包门禁 check_package.py", False, (out.strip()[-200:] or "无输出"))
+        else:
+            ok = bool(info.get("ok"))
+            errs = info.get("errors") or []
+            warns = info.get("warnings") or []
+            infos = "；".join(info.get("info") or [])
+            step("包门禁 check_package.py", ok,
+                 (infos + ("；%d 项警告" % len(warns) if warns else "")) if ok
+                 else "；".join(errs[:3]) + ("（共 %d 处硬错误）" % len(errs)))
+            for w in warns:
+                warn("包门禁警告", w)
 
     print("\n1) 环境体检")
     rc, out = run([sys.executable, str(HERE / "00_check_env.py"), "--json",
