@@ -16,15 +16,18 @@
 ```bash
 python scripts/00_check_env.py                    # 1 环境体检（必须全绿）
 python scripts/edge_cdp.py start --port 9223      # 2 起浏览器（不用 headless，用完 stop）
-python scripts/10_measure_gate_export.py \        # 3 测量+门禁+导出（一次会话）
+# 3 测量+门禁+导出（一次会话）
+python scripts/10_measure_gate_export.py \
   --html poster.html --canvas 3402x4536 --pdf-size 900x1200 \
   --pdf poster.pdf --png _work/preview.png \
   --shapes _work/shapes.json --report _work/gate_report.json \
   --cdp http://127.0.0.1:9223 --js scripts/poster_measure.js
-python scripts/20_html2pptx.py --shapes _work/shapes.json --out poster.pptx \   # 4 生成 PPTX
+# 4 生成可编辑 PPTX
+python scripts/20_html2pptx.py --shapes _work/shapes.json --out poster.pptx \
   --html poster.html --font "Microsoft YaHei" --slide-mm 900x1200
 <node> "<kit>/lib/cli.js" convert --input poster.pptx --output _work/pptx.pdf
-python scripts/40_verify_pptx.py --pptx poster.pptx --shapes _work/shapes.json \  # 5 验收
+# 5 验收（PPTX→PDF 后逐项比对）
+python scripts/40_verify_pptx.py --pptx poster.pptx --shapes _work/shapes.json \
   --html poster.html --pdf-size 900x1200 --pdf-preview _work/preview.png --pptx-pdf _work/pptx.pdf
 python scripts/edge_cdp.py stop --port 9223        # 6 收尾
 python scripts/50_snapshot.py --label v1
@@ -66,7 +69,7 @@ banner(固定高) + 标题块(margin-top + 实测高) + 指标行(margin-top + �
 `banner + (14 + 标题块实测高) + (12 + 指标行高) + (12 + content 高) + 底部留白 = 4536`，
 底部留白 ≥50 px（参考 61 px）——标题块实测高去 `shapes.json` 里读，不要估算。
 
-**三栏**：`Σ栏宽 + Σ栏间距 = 画布宽 − 2×页边距`，且栏区左右留白之差 ≤2 px（门禁第 5 项逐像素查）。
+**三栏**：`Σ栏宽 + Σ栏间距 = 画布宽 − 2×页边距`，且栏区左右留白之差 ≤2 px（门禁第 7 项逐像素查）。
 页边距由栏宽反推：`(3402 − 3178)/2 = 112 px`；页头三块（标题块/指标行/content）必须同值，
 否则右栏会比页头缩进一条（实测踩过 48 px = 12.7 mm）。
 
@@ -124,11 +127,11 @@ banner(固定高) + 标题块(margin-top + 实测高) + 指标行(margin-top + �
 | 10 | **文本/图片覆盖** | 文本项 >0；测到图片数 + 隐藏数 + 被裁数 ≥ `<img>` 数 | `data.texts`、`gate.images` | 选择器不匹配 / 图被隐藏 |
 | 11 | **页面 JS 报错** | 0 条 | `pageerror` 事件 | 先修页内脚本 |
 | 12 | 画布 ↔ 目标 mm | `±1.5 mm` | `px / 96 × 25.4` | 画布尺寸算错 |
-| 13 | 每格余量（留白） | **0–40 px**（>40 记 loose） | `panel.bottom − max(子元素 bottom)` | 放大该栏图片 / 补文字 |
+| 13 | 每格余量（留白，脚本中为独立 loose 统计、无编号） | **0–40 px**（>40 记 loose） | `panel.bottom − max(子元素 bottom)` | 放大该栏图片 / 补文字 |
 | 14 | 底边距 | `≥ 50 px` | 画布底 − 最下排面板 bottom | 减 `.content` 高度 |
 | 15 | PDF | 1 页，目标尺寸 ±1 mm | 导出后读 PDF `rect` | printToPDF 参数 |
 
-`GATE: PASS ⇔ 1–15 全部通过`。三点口径要记牢：
+`GATE: PASS ⇔ 1–12、14–15 全部通过`（第 13 项默认只告警）。三点口径要记牢：
 
 - **"检查没跑成" = 失败**：跳过（缺 `--pdf-size`、没导出 PDF）默认判 FAIL；
   确实不需要时用 `--allow-skip`，它会把每一处跳过打印出来。

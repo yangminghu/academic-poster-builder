@@ -573,7 +573,7 @@ def build_dup_image(dirs):
     return p
 
 
-register("C4", 7, "同一张图片被引用多次（形状名必须去重；验收要按顺序配对）",
+register("C4", 7, "同一张图片被引用多次（形状名必须去重；验收要按名字配对）",
          {"gate": "PASS", "pptx": 0, "verify": True}, build_dup_image)
 
 
