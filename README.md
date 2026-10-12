@@ -56,9 +56,13 @@ academic-poster-builder/          ← 仓库根
 **发布不再手工**：改完包 → 把 `SKILL.md` 的 `version` 与本次发布号对齐 → 打 tag 并推送：
 
 ```bash
-git tag -a v1.8.0 -m "学术墙报制备 v1.8.0"
+git tag v1.8.0            # 轻量 tag（本项目约定：tag 与提交信息都留空）
 git push origin v1.8.0
 ```
+
+> **提交信息约定**：本项目所有提交信息**留空**（`git commit --allow-empty-message -m ""`）。
+> 变更内容写在 `references/00-install.md` 的版本记录与 [RELEASE_NOTES.md](RELEASE_NOTES.md) 里，
+> 不写进提交信息 —— 这样 GitHub 的文件列表里不会出现提交摘要。
 
 CI 会先校验（tag 必须与包内 `version` 一致），通过后**自动创建或更新 Release**，
 把确定性打包出的 zip 挂成附件，并清理过期附件。Release 描述取自 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
