@@ -126,14 +126,21 @@ jobs:
           echo "tag=$TAG  zip=$NAME"
           TITLE=$(python -c "import re,pathlib;t=pathlib.Path('academic-poster-builder/SKILL.md').read_text(encoding='utf-8');print(re.search(r'^display_name:\s*(.+)$',t,re.M).group(1).strip())")
           TITLE="${TITLE%%（*}"
+          NOTES="RELEASE_NOTES.md"
+          if [ ! -f "$NOTES" ]; then echo "::error::缺 $NOTES（Release 描述来源）"; exit 1; fi
+
+          # 已存在就更新，不存在就创建；两种情况都强制 --draft=false
+          # （tag 被删过会导致 Release 变成 draft/untagged —— 此时附件对匿名访问不可见，必须显式取消 draft）
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "已存在 Release，更新标题/描述/附件"
-            gh release edit "$TAG" --title "$TITLE $TAG" --notes-file RELEASE_NOTES.md
+            echo "已存在 Release：更新标题/描述/取消 draft"
+            gh release edit "$TAG" --title "$TITLE $TAG" --notes-file "$NOTES" --draft=false
           else
             echo "创建 Release"
-            gh release create "$TAG" --title "$TITLE $TAG" --notes-file RELEASE_NOTES.md --verify-tag
+            gh release create "$TAG" --title "$TITLE $TAG" --notes-file "$NOTES" --verify-tag --draft=false
           fi
+
           gh release upload "$TAG" "$ZIP" --clobber
+
           # 清理过期附件（附件名带版本号，--clobber 只覆盖同名文件）
           for a in $(gh release view "$TAG" --json assets -q '.assets[].name'); do
             if [ "$a" != "$NAME" ]; then
@@ -141,6 +148,13 @@ jobs:
               gh release delete-asset "$TAG" "$a" --yes
             fi
           done
+
+          # 发布后自检：附件必须挂上、Release 不能是 draft（否则公开页看不到附件）
+          ISDRAFT=$(gh release view "$TAG" --json isDraft -q .isDraft)
+          COUNT=$(gh release view "$TAG" --json assets -q "[.assets[] | select(.name==\"$NAME\")] | length")
+          echo "isDraft=$ISDRAFT  附件 $NAME 命中=$COUNT"
+          if [ "$ISDRAFT" = "true" ]; then echo "::error::Release 仍是 draft，公开页看不到附件"; exit 1; fi
+          if [ "$COUNT" != "1" ]; then echo "::error::附件未挂上：$NAME"; exit 1; fi
           echo "== 发布结果 =="
-          gh release view "$TAG" --json tagName,name,assets \
-            -q '"tag=\(.tagName)  title=\(.name)  assets=\([.assets[] | "\(.name) (\(.size) B)"] | join(", "))"'
+          gh release view "$TAG" --json tagName,name,isDraft,assets \
+            -q '"tag=\(.tagName)  title=\(.name)  draft=\(.isDraft)  assets=\([.assets[] | "\(.name) (\(.size) B)"] | join(", "))"'
