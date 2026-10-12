@@ -6,7 +6,7 @@ description: "把用户给的文献与资料做成学术墙报：读文献定故
 description_zh: "文献/资料 → 学术墙报的完整流程与硬规范：输入清单与合规红线 → 故事线与面板划分 → 墙报文案改写 → 图表与引用 → 生成 HTML → 几何门禁 → 导出 PDF 与可编辑 PPTX → 一致性验收；含图片裁白边与纵横比审计、object-fit 裁切、单边边框、编号居中修正、进程与备份规范。"
 description_en: "Turn supplied literature and materials into an academic poster: gather inputs and clear rights, define the storyline and panels, rewrite copy for poster density, prepare figures and citations, then produce HTML, PDF and an editable, pixel-faithful PPTX (browser-measured DOM geometry, a quantified layout gate, figure trimming and aspect audit, object-fit cropping, per-side borders, and PPT-vs-PDF verification of badge centring, text placement, picture crop and package integrity)."
 category: writing
-version: 1.7.1
+version: 1.7.2
 author: Yangming Hu
 license: Apache-2.0（见 @references/LICENSE）
 ---
@@ -15,7 +15,8 @@ license: Apache-2.0（见 @references/LICENSE）
 
 **输入**：用户给的文献与资料（论文、图、数据、会议要求）。**输出**：三种同源交付物 ——
 `poster.html`（唯一真源）、`poster.pdf`（送印）、`poster.pptx`（可编辑）。
-中间每一步都有**可量化的门禁**：先按 `05` 节把墙报做出来，再用 `01`–`04` 把 HTML 变成
+中间每一步都有**可量化的门禁**：先按 `@references/05-prepare.md` 把墙报做出来，
+再用 `01`–`04` 把 HTML 变成
 与浏览器/PDF **逐元素对齐**的 PPTX。包内阈值来自多轮真实迭代（900×1200 mm 与 A0 两种画布、
 数十个中性样本的压力矩阵），不是纸上推算。
 
@@ -163,8 +164,9 @@ python scripts/50_snapshot.py --label v1
   属可接受的渲染器差异 → 不要把两行文字排到只差 10 px 的位置上。
 - macOS / Linux：浏览器路径与字体族按环境替换（`CHROME_PATH`、`--font`），中文字体缺失时
   断行点会与 PDF 不一致。
-- `PPTX→PDF` 依赖 LibreOffice kit；缺失时 `40_verify_pptx.py` 的页尺寸项与
-  `99_selftest.py` 第 4 步自动跳过。
+- `PPTX→PDF` 依赖 LibreOffice kit。`40_verify_pptx.py` 的 `--pptx-pdf` 是**必填**：拿不到
+  PPTX→PDF 就跑不了验收（输入文件缺失 → 退出码 2）；`99_selftest.py` 里该环节记为 **SKIP** 并在
+  结论里点明（不假装全绿），要当硬门禁就加 `--require-verify`。
 - **接单/收费本身不违法**，风险在素材授权与经营合规：见 `@references/00-install.md` 第 6 节。
 - 门禁默认**把"跳过"判失败**（缺 `--pdf-size`、没导出 PDF 等）；确实不需要时用 `--allow-skip`，
   它会把每一处跳过打印出来。`40_verify_pptx.py` 同理：没有可比对的编号徽标时用 `--no-badge-check`。

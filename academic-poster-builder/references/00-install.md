@@ -21,7 +21,7 @@ pip install playwright pymupdf python-pptx Pillow numpy
   `connect_over_cdp`，不需要 `playwright install`。其它平台用 `CHROME_PATH` 或 `--exe`。
 - **LibreOffice kit**（仅 PPTX→PDF）：用运行环境自带的 kit CLI（`LIBREOFFICE_KIT_CLI`，
   node 用 `LIBREOFFICE_KIT_NODE` 或 PATH）；没有也能跑完整流程，只是 `40_verify_pptx.py` 的
-  页尺寸项与 `99_selftest.py` 第 4 步会**明确报 SKIP**（`--require-verify` 可把它当失败）。
+  页尺寸项与 `99_selftest.py` 第 5 步会**明确报 SKIP**（`--require-verify` 可把它当失败）。
 - **中文字体**：模板默认 `Microsoft YaHei`；Linux/macOS 换成实际安装的字体族，
   且 `--font` 必须与浏览器字体栈第一项一致（否则断行点与 PDF 不一致）。生成 PPTX 时若本机
   没有该字体，`20_html2pptx.py` 会告警。
@@ -51,6 +51,44 @@ Edge 155 / LibreOffice kit（native）/ Microsoft YaHei。
 
 ## 4. 版本记录
 
+**v1.7.2** —— 文本自查修正（只改文档与说明文字，不改任何判定逻辑）：
+
+| # | 缺陷 | 修法 |
+|---|---|---|
+| 1 | `00-install.md` 有**一行表格被拆成两行**（Markdown 表格行必须单行，否则渲染错乱） | 合并为一行 |
+| 2 | `04-operations.md`、`07-pressure-matrix.md` 的单元格里有 JS 的 `\|\|`，被当成列分隔符（7 列 vs 表头 5 列） | 改写单元格文字，不再出现 `\|\|` |
+| 3 | `02-pptx-conversion.md` 的「已知的渲染器差异」用 `###`，标题从 `#` 直接跳级 | 改为 `##` |
+| 4 | `SKILL.md` 已知边界称"缺 LibreOffice kit 时 `40_verify_pptx.py` 的页尺寸项自动跳过" —— **与代码不符**：`--pptx-pdf` 是必填，输入缺失直接退出码 2 | 改为"`--pptx-pdf` 必填；`99_selftest.py` 记 SKIP 并在结论点明，`--require-verify` 才按失败处理" |
+| 5 | `99_selftest.py` 的说明文字写"五步"、并把一致性校验叫"第 4 步"，实际打印的是 **0)–5) 六步**（一致性校验是第 5 步） | 说明文字与实际步骤对齐 |
+| 6 | `SKILL.md` 用"先按 `05` 节"指代参考文件，易被误读为章节号 | 改为 `@references/05-prepare.md` |
+| 7 | `00-install.md` 变更记录里提到已不存在的 `references/许可与署名.md`，会被当成失效链接 | 标注"（**已不存在**）" |
+| 8 | `06-field-notes.md` 说"前 5 节讲怎么把墙报做出来" —— 包内 00–07 共 8 份参考文件，"前 5 节"指向不明 | 改为 `05` |
+| 9 | `07-pressure-matrix.md` 两张表的列名都叫"轮"，但 §2 是**引入轮**、§4 是**修复轮**（`B5/B6`、`C9` 因此看起来自相矛盾） | 列名改为"引入轮 / 修复轮"，并在 §2 加一句说明 |
+| 10 | `07-pressure-matrix.md` §2 说 `C4`"按名字配对"，而 `60_pressure_matrix.py --list` 的样本说明写"按顺序配对"（代码实际按 `FIG <文件名>` 配对） | 改脚本的说明文字（文档是对的） |
+| 11 | `00-install.md` 正文残留格式化占位符 `{extra}`，会原样渲染 | 删除 |
+| 12 | `00-install.md` 称"`99_selftest.py` 第 4 步报 SKIP"，而第 4 步是"生成 PPTX"、kit 相关 SKIP 在**第 5 步** | 改为"第 5 步" |
+| 13 | `00-install.md` 变更记录顺序错乱（v1.7.0 → v1.7.2 → v1.7.1） | 按版本倒序重排 |
+| 14 | `01-workflow.md` 三处把注释写在续行符 `\` 之后 —— bash 下 `\`+空格不是续行符，命令会断在那里 | 注释移到上一行，保证 `\` 是行末字符 |
+| 15 | `01-workflow.md` 把"栏区左右留白"叫"门禁第 5 项"（表里第 5 项是栏底对齐，它是第 7 项） | 改为"第 7 项" |
+| 16 | `01-workflow.md`"`GATE: PASS ⇔ 1–15 全部通过`"与紧接的"第 13 项默认只警告"自相矛盾 | 改为"1–12、14–15 全部通过（第 13 项默认只告警）" |
+| 17 | `01-workflow.md` 门禁编号与脚本错位：脚本 `# 13)` 是"底边距"（文档第 14 项），"每格余量"在脚本里是独立 loose 统计、无编号 | 表内给第 13 项加注 |
+| 18 | `04-operations.md` 故障表混用两套编号：引"规则 13"（02 里规则 13 是 z-order，颜色存在性在**规则 15**）；引"规则 14"（02 里是四条边框，该内容属 **SKILL 硬规则 14**） | 分别改为"规则 15""SKILL 硬规则 14" |
+| 19 | `05-prepare.md`"尺寸错 → 门禁第 1/6 项必挂"（第 6 项是栏内最大间隙） | 改为"第 1/12 项" |
+本版经过**两轮独立审校**：第一轮由本人按下列方法自查（7 处），第二轮由一名独立审校者逐行复核（12 处，含上面第 8–19 项），两轮发现的问题全部已修。
+
+自查方法：交叉引用核对（`@references/*` 与 `scripts/*` 是否真实存在）、版本号前向引用、文档提到的
+`--flag` 是否真被脚本定义、Markdown 表格列数与标题层级、编码（BOM/CRLF/NUL）、旧口径残留、
+以及**文档声明 vs 代码实际**（门禁 15 项、压力矩阵 39 个样本、规则 15 条均逐项核对通过）。
+
+**v1.7.1** —— 许可与署名（元数据，不改版式规则）：
+
+| # | 变更 |
+|---|---|
+| 1 | 许可由"专有（保留所有权利）"改为 **Apache License 2.0**（宽松开源：允许商用、修改、闭源再分发） |
+| 2 | `references/LICENSE` 重写为"中文摘要（授权 / 条件 / 免责 / 专利 / 原创性声明）+ 许可证全文" |
+| 3 | 署名统一为 **Yangming Hu**（frontmatter `author` 由 `HYM` 改为 `Yangming Hu`；版权行同步） |
+| 4 | `SKILL.md` 的 `license:` 字段与 `00-install.md` 第 6 节同步；`99_selftest.py` 的许可断言改为校验 Apache-2.0 标识 + 署名，并**禁止回退**（出现"专有许可"即 FAIL） |
+
 **v1.7.0** —— 经验沉淀 + 10 轮压力矩阵自查驱动的一轮修正（本轮共修 20+ 处，明细见 `07`）：
 
 | # | 变更 |
@@ -68,16 +106,6 @@ Edge 155 / LibreOffice kit（native）/ Microsoft YaHei。
 | 11 | 文档同步：规则 13/14/15（颜色存在性、跳过即失败、选择器覆盖）、故障表新增 8 行、经验与压力矩阵两节新增 |
 | 12 | **Windows 中文控制台编码**：所有脚本把 `stdout/stderr` 重设为 UTF-8（`errors="replace"`）—— 否则打印 `−/≈` 这类字符会 `UnicodeEncodeError` 崩掉（实测出现在一致性校验里，看着像版式失败）；`99_selftest.py` 与 `60_pressure_matrix.py` 故意**不**给子进程设 `PYTHONIOENCODING`，让这条路径始终被测到 |
 
-**v1.7.1** —— 许可与署名（元数据，不改版式规则）：
-
-| # | 变更 |
-|---|---|
-| 1 | 许可由"专有（保留所有权利）"改为 **Apache License 2.0**（宽松开源：允许商用、修改、闭源再分发） |
-| 2 | `references/LICENSE` 重写为"中文摘要（授权 / 条件 / 免责 / 专利 / 原创性声明）+ 许可证全文" |
-| 3 | 署名统一为 **Yangming Hu**（frontmatter `author` 由 `HYM` 改为 `Yangming Hu`；版权行同步） |
-| 4 | `SKILL.md` 的 `license:` 字段与 `00-install.md` 第 6 节同步；`99_selftest.py` 的许可断言改为校验
-Apache-2.0 标识 + 署名，并**禁止回退**（出现"专有许可"即 FAIL） |
-
 **v1.6.0** —— 技能定位修正：从"HTML→PPTX"扩成"**文献/资料 → 学术墙报（HTML/PDF/可编辑 PPTX）**"：
 
 | # | 变更 |
@@ -87,7 +115,7 @@ Apache-2.0 标识 + 署名，并**禁止回退**（出现"专有许可"即 FAIL�
 | 3 | 新增 **`references/05-prepare.md`**：制备流程（输入清单与合规红线 / 故事线与面板划分 / 墙报文案改写口径 / 从文献取图与引用 / 三种交付物 / 交付前清单） |
 | 4 | `SKILL.md` 标题、引言、资源清单、何时用、工作流（新增第 0.5 步"制备"）同步；交付物表已含三种文件 |
 
-**v1.5.x** —— 许可与署名完善：`references/许可与署名.md` 改名 **`references/LICENSE`**（ASCII 文件名）；
+**v1.5.x** —— 许可与署名完善：许可声明文件由旧名 `references/许可与署名.md`（**已不存在**）改为 **`references/LICENSE`**（ASCII 文件名）；
 新增专有许可（保留全部权利）+ 授权范围 + 原创性声明 + 免责声明；frontmatter 新增 `license:` 字段；
 `99_selftest.py` 新增第 0 步「包结构与许可」守卫（根目录只允许 `SKILL.md`/`references/`/`scripts/`/`templates/`，
 **全包不得出现手机号或邮箱**）。

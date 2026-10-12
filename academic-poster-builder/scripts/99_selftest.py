@@ -4,15 +4,17 @@
     python scripts/99_selftest.py                     # 用包内模板测（默认）
     python scripts/99_selftest.py --html poster.html  # 用自己的墙报测（门禁会按你的版式判）
 
-五步，任何一步失败都会指出是哪一环：
+六步（0–5），任何一步失败都会指出是哪一环：
+  0) 包结构与许可（根目录结构 / LICENSE 是 Apache-2.0 / frontmatter / 无联系方式泄漏）
   1) 环境体检（调用 00_check_env.py --json，探测逻辑只此一份）
-  2) 起浏览器 → 10_measure_gate_export（测量 + 门禁 + 导出 PDF/预览图）
-  3) 20_html2pptx（生成可编辑 PPTX）
-  4) 有 LibreOffice kit 时：PPTX→PDF → 40_verify_pptx（一致性校验）
-  5) 关掉**自己起的**浏览器（进程树清理；绝不用 --kill-all，以免关掉用户的浏览器）
+  2) 起浏览器（默认屏幕外；同端口已在跑会复用）
+  3) 测量 + 门禁 + 导出 PDF/预览图（10_measure_gate_export.py）
+  4) 生成可编辑 PPTX（20_html2pptx.py）
+  5) 一致性校验（PPTX→PDF → 40_verify_pptx.py；需要 LibreOffice kit）
 
-退出码 0 = 全绿；1 = 有环节失败。缺 LibreOffice kit 时第 4 步记为 SKIP 并在结论里明说
+退出码 0 = 全绿；1 = 有环节失败。缺 LibreOffice kit 时第 5 步记为 SKIP 并在结论里明说
 （"PASS（含 N 项跳过：…）"），绝不假装全绿；要把它当硬门禁用 --require-verify。
+结束时会关掉**自己起的**浏览器（进程树清理；绝不用 --kill-all，以免关掉用户的浏览器）。
 """
 from __future__ import annotations
 

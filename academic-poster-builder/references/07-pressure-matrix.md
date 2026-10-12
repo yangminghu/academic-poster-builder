@@ -33,7 +33,10 @@
 
 ## 2. 39 个样本
 
-| 轮 | 样本 | 内容 | 预期 |
+> 「引入轮」= 该样本**加入矩阵**的轮次。样本一经加入，**每轮都会跑**（见 §3），
+> 因此某个样本可能在后续轮次才被修绿 —— 各缺陷的**修复轮次**见 §4，两张表的「轮」不一定相同。
+
+| 引入轮 | 样本 | 内容 | 预期 |
 |---|---|---|---|
 | 1 | `A1` | 标准三栏 | PASS |
 | 1 | `A7` / `D6` / `D7` | 空画布 / 选择器 0 命中 / 没有栏容器 | FAIL（有原因，不崩） |
@@ -86,7 +89,7 @@ python scripts/60_pressure_matrix.py --all --md out.md  # 全量 + Markdown 报�
 
 每一轮都先跑、看结果、改代码、再跑同一批直到全绿。以下都是**跑出来**的（不是读文档看出来的）：
 
-| 轮 | 缺陷（症状） | 根因 | 修法 |
+| 修复轮 | 缺陷（症状） | 根因 | 修法 |
 |---|---|---|---|
 | 1 | 空画布/无栏容器/选择器 0 命中 → **Python traceback**，`gate_report.json` 都没写出来 | `max([])`、`content.scrollHeight`（null）、`body.children`（null） | JS 侧 null 保护 + 把命中数交给门禁；**0 命中一律判失败**并提示用哪个选择器 |
 | 1 | 测不到任何东西却报 `GATE: PASS`（最坏的情况：PPTX 里没有文字也算过） | 覆盖度只是 `print`，不参与判定 | 文本/图片/面板/栏的命中数全部进判定；跳过 = 失败（`--allow-skip` 才放行） |
@@ -102,7 +105,7 @@ python scripts/60_pressure_matrix.py --all --md out.md  # 全量 + Markdown 报�
 | 8 | **面板内容溢出被裁却 PASS**（59 段正文塞进固定高面板） | 只看 `.panel-body` 的 scrollHeight，而 body 已经长高了 | 增加 `.panel` 自身的 `scrollHeight − clientHeight`（`overflow:hidden` 也会报内容高） |
 | 8 | 页面 JS 报错、横向越界、画布外内容都不报 | 门禁没有这些项 | 新增：JS 报错 / 越界（横向与纵向）/ `.poster` 盒是否等于画布 / 祖先 transform |
 | 5 | `div > span` 写的整行文字**从 PPT 里消失**（三个门禁都发现不了） | 兜底扫描要求"直接文本子节点" | 行内子元素里的文字也算；补 `C11` 样本用 `shapes_include` 断言 |
-| 5 | `opacity:0` 的文字被当成不透明写进 PPT | `parseFloat("0") || 1` → 1 | 显式判断 `isNaN`；祖先 opacity <0.02 视为隐藏 |
+| 5 | `opacity:0` 的文字被当成不透明写进 PPT | `parseFloat("0")` 返回 0，却被当成真值 | 显式判断 `isNaN`；祖先 opacity <0.02 视为隐藏 |
 | 10 | `text-align:justify` 被当右对齐输出 | 除 left/center 外全落到 `else: 右对齐` | 显式分支：right/end、justify、未知（按左对齐并告警） |
 | 10 | 本机没有指定字体时不告警 | 生成器不查字体 | 复用 `00_check_env` 的字体探测，缺失即告警 |
 | 全部 | 测量失败时**旧的 `shapes.json` 留在原地**，下一步会拿旧数据生成 PPTX | 覆盖写之前不清理 | 测量前把旧文件改名为 `.prev` 并提示 |
