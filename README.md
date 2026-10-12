@@ -67,6 +67,11 @@ CI 会先校验（tag 必须与包内 `version` 一致），通过后**自动创
 > 发布作业需要 `GITHUB_TOKEN` 的写权限（仓库默认通常已有）。若报 403：
 > Settings → Actions → General → Workflow permissions → 勾 "Read and write permissions"。
 
+⚠️ **已发布 Release 的 tag 不要删除后重推**。删除 tag 会让 GitHub 把该 Release 置为
+draft/untagged，附件随之对匿名访问不可见（下载 404）。工作流已显式 `--draft=false` 并在发布后
+自检"附件是否挂上、是否仍是 draft"，所以**重跑发布作业即可修复**：Actions → 校验与发布 →
+Run workflow → tag 填该版本号。要改 tag 指向，请先删掉 Release 再重打 tag。
+
 ## 安装
 
 把 `academic-poster-builder/` 整个目录放进 DSH 扫描的 skill 目录
